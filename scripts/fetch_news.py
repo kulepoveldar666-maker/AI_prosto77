@@ -89,7 +89,7 @@ def main():
     
     print(f"=== Запуск в {hour} UTC ===")
     
-    if hour == 5:
+    if True:
         # 08:00 МСК - TechCrunch AI
         category = "Новости ИИ"
         items = fetch_rss(TECHCRUNCH_AI_URL)
