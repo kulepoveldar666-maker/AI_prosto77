@@ -1,24 +1,20 @@
 import os
 import re
 import time
-import random
 import requests
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 
 # Источники
-ANEKDOT_URL = "https://www.anekdot.ru/rss/export_j.xml"
-ITHOME_URL = "https://www.ithome.com/rss/"
-
-# Ключевые слова для поиска смешного на IT之家 (роботы, курьёзы, ИИ)
-HUMOR_KEYWORDS = ["搞笑", "奇葩", "翻车", "乌龙", "笑话", "趣闻", "AI", "机器人", "人工智能"]
+TECHCRUNCH_AI_URL = "https://techcrunch.com/category/artificial-intelligence/feed/"
+NAKED_SCIENCE_AI_URL = "https://naked-science.ru/rubric/artificial-intelligence/feed"
 
 def translate_text(text):
     if not text:
         return text
     try:
         url = "https://api.mymemory.translated.net/get"
-        params = {"q": text, "langpair": "zh-CN|ru"} # Переводим с китайского
+        params = {"q": text, "langpair": "en|ru"}
         response = requests.get(url, params=params, timeout=10)
         data = response.json()
         return data['responseData']['translatedText']
@@ -54,28 +50,30 @@ def fetch_rss(url):
         print(f"Ошибка загрузки {url}: {e}")
         return []
 
-def send_to_telegram(category, text_to_send, image_url=None):
-    # ВСТАВЬ СЮДА СВОЙ ТОКЕН И ID КАНАЛА
+def send_to_telegram(category, it, title_ru, desc_ru):
+    # ВСТАВЬ СЮДА ТОКЕН И ID КАНАЛА
     token = "9095973216:AAEQWXbCXqDopIuVy0cUP_d8AxS4saY7HPw"
     chat_id = "-1003775176290" 
     
-    emoji = "😄" if "Анекдот" in category else "🤖"
+    text = (
+        f"🤖 **{category}**\n\n"
+        f"🔥 **{title_ru}**\n\n"
+        f"📝 {desc_ru}..."
+    )
     
-    full_text = f"{emoji} **{category}**\n\n{text_to_send}"
-    
-    if image_url and "http" in image_url:
+    if it['image'] and "http" in it['image']:
         url = f"https://api.telegram.org/bot{token}/sendPhoto"
         payload = {
             "chat_id": chat_id,
-            "photo": image_url,
-            "caption": full_text,
+            "photo": it['image'],
+            "caption": text,
             "parse_mode": "Markdown"
         }
     else:
         url = f"https://api.telegram.org/bot{token}/sendMessage"
         payload = {
             "chat_id": chat_id,
-            "text": full_text,
+            "text": text,
             "parse_mode": "Markdown"
         }
         
@@ -91,41 +89,46 @@ def main():
     
     print(f"=== Запуск в {hour} UTC ===")
     
-    if True:
-        # 08:00 МСК - Анекдот
-        items = fetch_rss(ANEKDOT_URL)
+    if hour == 5:
+        # 08:00 МСК - TechCrunch AI
+        category = "Новости ИИ"
+        items = fetch_rss(TECHCRUNCH_AI_URL)
         if items:
-            it = random.choice(items[:5]) # Берем случайный из 5 свежих
-            text = f"{it['title']}\n\n{it['description']}"
-            send_to_telegram("Анекдот дня", text)
+            it = items[0]
+            print(f"Отправляем: {it['title']}")
+            title_ru = translate_text(it['title'])
+            desc_ru = translate_text(it['description'])
+            send_to_telegram(category, it, title_ru, desc_ru)
             
     elif hour == 9:
-        # 12:00 МСК - Смешная новость про ИИ
-        items = fetch_rss(ITHOME_URL)
-        humor_items = [i for i in items if any(k in (i['title'] + i['description']).lower() for k in HUMOR_KEYWORDS)]
-        if humor_items:
-            it = humor_items[0]
-            print(f"Нашли юмор: {it['title']}")
-            text = translate_text(it['description'])
-            send_to_telegram("Курьёзы технологий", text, it['image'])
+        # 12:00 МСК - Naked Science AI
+        category = "Наука и ИИ"
+        items = fetch_rss(NAKED_SCIENCE_AI_URL)
+        if items:
+            it = items[0]
+            print(f"Отправляем: {it['title']}")
+            # Naked Science на русском, переводить не нужно
+            send_to_telegram(category, it, it['title'], it['description'])
             
     elif hour == 14:
-        # 17:00 МСК - Еще один анекдот
-        items = fetch_rss(ANEKDOT_URL)
-        if items and len(items) > 5:
-            it = random.choice(items[5:10]) # Берем из следующей партии
-            text = f"{it['title']}\n\n{it['description']}"
-            send_to_telegram("Анекдот", text)
+        # 17:00 МСК - TechCrunch AI
+        category = "Новости ИИ"
+        items = fetch_rss(TECHCRUNCH_AI_URL)
+        if items and len(items) > 1:
+            it = items[1]
+            print(f"Отправляем: {it['title']}")
+            title_ru = translate_text(it['title'])
+            desc_ru = translate_text(it['description'])
+            send_to_telegram(category, it, title_ru, desc_ru)
             
     elif hour == 16:
-        # 19:00 МСК - Смешная новость про ИИ
-        items = fetch_rss(ITHOME_URL)
-        humor_items = [i for i in items if any(k in (i['title'] + i['description']).lower() for k in HUMOR_KEYWORDS)]
-        if humor_items and len(humor_items) > 1:
-            it = humor_items[1]
-            print(f"Нашли юмор: {it['title']}")
-            text = translate_text(it['description'])
-            send_to_telegram("Курьёзы технологий", text, it['image'])
+        # 19:00 МСК - Naked Science AI
+        category = "Наука и ИИ"
+        items = fetch_rss(NAKED_SCIENCE_AI_URL)
+        if items and len(items) > 1:
+            it = items[1]
+            print(f"Отправляем: {it['title']}")
+            send_to_telegram(category, it, it['title'], it['description'])
             
     else:
         print(f"Запуск в {hour} UTC не соответствует расписанию. Ждем следующего.")
