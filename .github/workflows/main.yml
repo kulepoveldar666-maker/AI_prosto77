@@ -1,0 +1,23 @@
+name: Humor and AI Posts
+
+on:
+  schedule:
+    - cron: '0 5 * * *'   # 08:00 МСК
+    - cron: '0 9 * * *'   # 12:00 МСК
+    - cron: '0 14 * * *'  # 17:00 МСК
+    - cron: '0 16 * * *'  # 19:00 МСК
+  workflow_dispatch: {}
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run script
+        run: python scripts/fetch_news.py
