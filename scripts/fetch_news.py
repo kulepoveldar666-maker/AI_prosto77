@@ -91,7 +91,7 @@ def main():
     
     print(f"=== Запуск в {hour} UTC ===")
     
-    if hour == 5:
+    if True:
         # 08:00 МСК - Анекдот
         items = fetch_rss(ANEKDOT_URL)
         if items:
