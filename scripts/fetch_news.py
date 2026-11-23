@@ -14,6 +14,9 @@ SENT_FILE = "sent.json"
 token = ("9095973216:AAEQWXbCXqDopIuVy0cUP_d8AxS4saY7HPw")
 chat_id = ("-1003775176290")
 
+# ⚠️ Укажи свой email здесь (не обязательно, но повышает лимит до 50k)
+MYMEMORY_EMAIL = os.getenv("MYMEMORY_EMAIL", "")
+
 def load_sent():
     if os.path.exists(SENT_FILE):
         try:
@@ -25,18 +28,32 @@ def load_sent():
 
 def save_sent(sent):
     with open(SENT_FILE, "w", encoding="utf-8") as f:
-        json.dump(list(sent)[-200:], f) # храним последние 200 ссылок
+        json.dump(list(sent)[-200:], f)
 
 def translate_text(text):
-    if not text: return text
+    if not text:
+        return text
     try:
         url = "https://api.mymemory.translated.net/get"
         params = {"q": text[:1000], "langpair": "en|ru"}
-        response = requests.get(url, params=params, timeout=10)
-        return response.json()['responseData']['translatedText']
+        # Если email указан, лимит вырастет до 50 000 символов в день
+        if MYMEMORY_EMAIL:
+            params["de"] = MYMEMORY_EMAIL
+        
+        response = requests.get(url, params=params, timeout=15)
+        data = response.json()
+        translated = data.get('responseData', {}).get('translatedText', '')
+        
+        # ⚠️ КЛЮЧЕВАЯ ПРОВЕРКА: MyMemory присылает предупреждение как обычный текст.
+        # Если видим WARNING или quota — считаем перевод неудачным.
+        if "WARNING" in translated.upper() or "QUOTA" in translated.upper() or "MYMEMORY" in translated.upper():
+            print(f"⚠️ Лимит MyMemory исчерпан. Ответ: {translated[:100]}...")
+            return None  # Возвращаем None, чтобы сигнализировать об ошибке
+        
+        return translated
     except Exception as e:
         print(f"Ошибка перевода: {e}")
-        return text
+        return None
 
 def fetch_rss(url):
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
@@ -106,19 +123,23 @@ def main():
     all_items.extend(fetch_rss(VENTUREBEAT_AI_URL))
     all_items.extend(fetch_rss(MIT_AI_URL))
 
-    # Оставляем только те, которые еще не отправляли
     fresh = [i for i in all_items if i['link'] not in sent]
 
     if not fresh:
         print("Все новости уже отправлены.")
         return
 
-    # Берем ровно 1 новость
     it = fresh[0]
     print(f"Отправляем: {it['title']}")
     
+    # Переводим заголовок и описание
     title_ru = translate_text(it['title'])
     desc_ru = translate_text(it['description'])
+    
+    # ⚠️ Если перевод вернул None (лимит), НЕ отправляем пост, чтобы не спамить предупреждением
+    if title_ru is None or desc_ru is None:
+        print("❌ Пропускаем новость: не удалось перевести из-за лимита API. Ссылка не сохранена, попробуем в следующий раз.")
+        return
     
     success = send_to_telegram("Новости ИИ", it, title_ru, desc_ru)
     
