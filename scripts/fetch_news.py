@@ -5,9 +5,10 @@ import requests
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 
-# Источники
-TECHCRUNCH_AI_URL = "https://techcrunch.com/category/artificial-intelligence/feed/"
-NAKED_SCIENCE_AI_URL = "https://naked-science.ru/rubric/artificial-intelligence/feed"
+# 3 источника новостей про ИИ
+VERGE_AI_URL = "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml"
+VENTUREBEAT_AI_URL = "https://venturebeat.com/category/ai/feed/"
+MIT_AI_URL = "https://www.technologyreview.com/topic/artificial-intelligence/feed/"
 
 def translate_text(text):
     if not text:
@@ -34,8 +35,19 @@ def fetch_rss(url):
             link = item.findtext("link") or ""
             description = item.findtext("description") or ""
             
+            # Поиск картинки
+            image = "Картинка не найдена в RSS"
             img_match = re.search(r'<img[^>]+src="([^"]+)"', description)
-            image = img_match.group(1) if img_match else "Картинка не найдена в RSS"
+            if img_match:
+                image = img_match.group(1)
+            else:
+                enclosure = item.find("enclosure")
+                if enclosure is not None and enclosure.get("url"):
+                    image = enclosure.get("url")
+                else:
+                    media = item.find("{http://search.yahoo.com/mrss/}content")
+                    if media is not None and media.get("url"):
+                        image = media.get("url")
             
             clean_desc = re.sub(r"<[^>]+>", "", description).strip()[:300]
             
@@ -51,7 +63,7 @@ def fetch_rss(url):
         return []
 
 def send_to_telegram(category, it, title_ru, desc_ru):
-    # ВСТАВЬ СЮДА ТОКЕН И ID КАНАЛА
+    # ВСТАВЬ СЮДА СВОЙ ТОКЕН И ID КАНАЛА
     token = "9095973216:AAEQWXbCXqDopIuVy0cUP_d8AxS4saY7HPw"
     chat_id = "-1003775176290" 
     
@@ -84,54 +96,28 @@ def send_to_telegram(category, it, title_ru, desc_ru):
         print(f"Ошибка отправки: {response.text}")
 
 def main():
-    now_utc = datetime.now(timezone.utc)
-    hour = now_utc.hour
+    print("=== Начинаем сбор 3 новостей про ИИ ===")
     
-    print(f"=== Запуск в {hour} UTC ===")
+    all_items = []
+    all_items.extend(fetch_rss(VERGE_AI_URL))
+    all_items.extend(fetch_rss(VENTUREBEAT_AI_URL))
+    all_items.extend(fetch_rss(MIT_AI_URL))
     
-    if True:
-        # 08:00 МСК - TechCrunch AI
-        category = "Новости ИИ"
-        items = fetch_rss(TECHCRUNCH_AI_URL)
-        if items:
-            it = items[0]
-            print(f"Отправляем: {it['title']}")
-            title_ru = translate_text(it['title'])
-            desc_ru = translate_text(it['description'])
-            send_to_telegram(category, it, title_ru, desc_ru)
-            
-    elif hour == 9:
-        # 12:00 МСК - Naked Science AI
-        category = "Наука и ИИ"
-        items = fetch_rss(NAKED_SCIENCE_AI_URL)
-        if items:
-            it = items[0]
-            print(f"Отправляем: {it['title']}")
-            # Naked Science на русском, переводить не нужно
-            send_to_telegram(category, it, it['title'], it['description'])
-            
-    elif hour == 14:
-        # 17:00 МСК - TechCrunch AI
-        category = "Новости ИИ"
-        items = fetch_rss(TECHCRUNCH_AI_URL)
-        if items and len(items) > 1:
-            it = items[1]
-            print(f"Отправляем: {it['title']}")
-            title_ru = translate_text(it['title'])
-            desc_ru = translate_text(it['description'])
-            send_to_telegram(category, it, title_ru, desc_ru)
-            
-    elif hour == 16:
-        # 19:00 МСК - Naked Science AI
-        category = "Наука и ИИ"
-        items = fetch_rss(NAKED_SCIENCE_AI_URL)
-        if items and len(items) > 1:
-            it = items[1]
-            print(f"Отправляем: {it['title']}")
-            send_to_telegram(category, it, it['title'], it['description'])
-            
-    else:
-        print(f"Запуск в {hour} UTC не соответствует расписанию. Ждем следующего.")
+    if not all_items:
+        print("Свежих новостей не найдено.")
+        return
+
+    # Берем 3 самые свежие новости из общего списка
+    selected = all_items[:3]
+
+    for it in selected:
+        print(f"Отправляем: {it['title']}")
+        
+        title_ru = translate_text(it['title'])
+        desc_ru = translate_text(it['description'])
+        
+        send_to_telegram("Новости ИИ", it, title_ru, desc_ru)
+        time.sleep(3)
 
 if __name__ == "__main__":
     main()
