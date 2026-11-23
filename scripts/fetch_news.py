@@ -68,17 +68,31 @@ def fetch_rss(url):
             description = item.findtext("description") or ""
             
             image = None
+            
+            # 1. Ищем <img> в описании
             img_match = re.search(r'<img[^>]+src="([^"]+)"', description)
             if img_match:
                 image = img_match.group(1)
             else:
+                # 2. Ищем в enclosure
                 enclosure = item.find("enclosure")
                 if enclosure is not None and enclosure.get("url"):
                     image = enclosure.get("url")
                 else:
+                    # 3. Ищем в media:content
                     media = item.find("{http://search.yahoo.com/mrss/}content")
                     if media is not None and media.get("url"):
                         image = media.get("url")
+                    else:
+                        # 4. Ищем в media:thumbnail (часто у The Verge и MIT)
+                        thumbnail = item.find("{http://search.yahoo.com/mrss/}thumbnail")
+                        if thumbnail is not None and thumbnail.get("url"):
+                            image = thumbnail.get("url")
+            
+            # 5. Если картинки вообще нет, ставим случайную заглушку про ИИ,
+            # чтобы пост в телеграме всегда выглядел красиво с картинкой
+            if not image:
+                image = "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=1000&q=80"
             
             clean_desc = re.sub(r"<[^>]+>", "", description).strip()[:300]
             items.append({
