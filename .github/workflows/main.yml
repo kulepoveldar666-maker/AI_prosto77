@@ -24,8 +24,8 @@ jobs:
         
       - name: Run script
         env:
-          TG_TOKEN: "9093268140:AAHDUn5S9kg99ROBD9UMrytd0uWj5dQPlI0"
-          TG_CHAT_ID:  "-1004376020976"
+          TG_TOKEN: "9095973216:AAEQWXbCXqDopIuVy0cUP_d8AxS4saY7HPw"
+          TG_CHAT_ID:  "-1003775176290"
           MYMEMORY_EMAIL: "kulepoveldar666@gmail.com" # Лучше заменить на свой реальный email
         run: python scripts/fetch_news.py
 
