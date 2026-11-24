@@ -8,8 +8,8 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 
 # ============ НАСТРОЙКИ ============
-token = os.getenv("9093268140:AAHDUn5S9kg99ROBD9UMrytd0uWj5dQPlI0")
-chat_id = os.getenv("-1004376020976")
+token = os.getenv("9095973216:AAEQWXbCXqDopIuVy0cUP_d8AxS4saY7HPw")
+chat_id = os.getenv("-1003775176290")
 MYMEMORY_EMAIL = os.getenv("kulepoveldar666@gmail.com", "")
 
 SENT_FILE = "sent_news.json"
